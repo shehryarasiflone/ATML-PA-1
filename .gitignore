@@ -1,0 +1,14 @@
+# Python & Environments
+__pycache__/
+*.py[cod]
+.venv/
+env/
+venv/
+
+# Compute & Data
+data/
+*.pth
+*.pt
+checkpoints/
+wandb/
+.ipynb_checkpoints/
