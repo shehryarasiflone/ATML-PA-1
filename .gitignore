@@ -5,8 +5,10 @@ __pycache__/
 env/
 venv/
 
-# Compute & Data
-data/
+# Ignore only the root data/ folder where raw datasets are downloaded
+/data/
+
+# Model checkpoints & tracking
 *.pth
 *.pt
 checkpoints/
