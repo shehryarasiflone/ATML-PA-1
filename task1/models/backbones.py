@@ -31,16 +31,18 @@ class ViTB16FeatureExtractor(nn.Module):
         for p in self.parameters():
             p.requires_grad = False
         self.eval()
-
+# Pass through patch embeddings and transformer encoder to extract [CLS] token which is at index 0
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Pass through patch embeddings and transformer encoder to extract [CLS] token which is at index 0
+        # 1. Patch projection
         x = self.base._process_input(x)
         n = x.shape[0]
+        # 2. Prepend [CLS] token
         batch_class_token = self.base.class_token.expand(n, -1, -1)
         x = torch.cat([batch_class_token, x], dim=1)
+        # 3. Transformer encoder blocks + final LayerNorm
         x = self.base.encoder(x)
-        cls_token = x[:, 0]
-        return self.base.heads.pre_logits(cls_token)
+        # 4. Extract the final CLS token representation [B, 768] directly
+        return x[:, 0]
 
 class CLIPFeatureExtractor(nn.Module):
     def __init__(self):
