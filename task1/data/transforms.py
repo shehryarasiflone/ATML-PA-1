@@ -43,3 +43,33 @@ def apply_translation(img: Image.Image, delta: int, direction: str) -> Image.Ima
         raise ValueError(f"Unknown direction: {direction}")
 
     return TF.crop(padded, *crop_box)
+
+def apply_patch_shuffle(img: Image.Image, seed: int) -> Image.Image:
+    """
+    Divides a 224x224 image into a 4x4 grid (16 patches of 56x56)
+    and permutes them using a deterministic non-identity shuffle.
+    """
+    w, h = img.size
+    grid_size = 4
+    patch_w = w // grid_size  # 56
+    patch_h = h // grid_size  # 56
+
+    patches = []
+    for r in range(grid_size):
+        for c in range(grid_size):
+            box = (c * patch_w, r * patch_h, (c + 1) * patch_w, (r + 1) * patch_h)
+            patches.append(img.crop(box))
+
+    rng = np.random.default_rng(seed)
+    # Ensure a non-identity permutation
+    perm = rng.permutation(16)
+    while np.array_equal(perm, np.arange(16)):
+        perm = rng.permutation(16)
+
+    shuffled_img = Image.new("RGB", (w, h))
+    for idx, p_idx in enumerate(perm):
+        r = idx // grid_size
+        c = idx % grid_size
+        shuffled_img.paste(patches[p_idx], (c * patch_w, r * patch_h))
+
+    return shuffled_img
