@@ -9,11 +9,14 @@ class ConditionalDomainDiscriminator(nn.Module):
     """
     def __init__(self, in_features: int = 3584, hidden_dim: int = 1024):
         super().__init__()
+        # Restored BatchNorm1d to prevent adversarial gradient explosion
         self.net = nn.Sequential(
             nn.Linear(in_features, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
             nn.Linear(hidden_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
             nn.Linear(hidden_dim, 1)
@@ -25,8 +28,7 @@ class ConditionalDomainDiscriminator(nn.Module):
         # 1. Reverse gradient ONLY through the feature representation
         feat_rev = ReverseLayerF.apply(feat, alpha)
         
-        # 2. STRICTLY DETACH the class probabilities to prevent adversarial gradient
-        # from corrupting the classifier head weights
+        # 2. Detach the class probabilities to protect the classifier head
         probs_detached = softmax_probs.detach()
 
         # 3. Explicit multilinear conditioning: [B, 7, 1] x [B, 1, 512] -> [B, 7, 512] -> [B, 3584]
@@ -36,7 +38,6 @@ class ConditionalDomainDiscriminator(nn.Module):
 def calc_entropy_weights(softmax_probs: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     """
     Computes CDAN+E sample weights: w(x) = 1 + exp(-H(p))
-    Weights must be completely detached from autograd graph.
     """
     with torch.no_grad():
         entropy = -torch.sum(softmax_probs * torch.log(softmax_probs + eps), dim=1)
