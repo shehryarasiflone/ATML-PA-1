@@ -18,7 +18,6 @@ def train_cdan():
     src_train_loaders, target_adapt_loader, src_val_loaders, target_eval_loader = get_pacs_dataloaders()
 
     model = PACSResNet18(num_classes=7).to(DEVICE)
-    # Multilinear dimension: 512 features * 7 classes = 3584
     discriminator = ConditionalDomainDiscriminator(in_features=3584, hidden_dim=1024).to(DEVICE)
 
     optimizer = torch.optim.AdamW(
@@ -42,7 +41,7 @@ def train_cdan():
     os.makedirs("task2/checkpoints", exist_ok=True)
     best_checkpoint_path = "task2/checkpoints/cdan_best.pth"
 
-    print("Training CDAN+E (Conditional GRL Alignment) with frozen BatchNorm stats...")
+    print("Training CDAN+E (Fixed Gradient Isolation) with frozen BatchNorm stats...")
 
     for epoch in range(1, total_epochs + 1):
         model.train()
@@ -56,7 +55,6 @@ def train_cdan():
             p = float(global_step) / float(total_steps)
             alpha = 2.0 / (1.0 + math.exp(-10.0 * p)) - 1.0
 
-            # 1. Balanced source mini-batch (24 samples)
             batch_imgs, batch_labels = [], []
             for d, loader in src_train_loaders.items():
                 try:
@@ -70,7 +68,6 @@ def train_cdan():
             x_src = torch.cat(batch_imgs, dim=0).to(DEVICE)
             y_src = torch.cat(batch_labels, dim=0).to(DEVICE)
 
-            # 2. Target mini-batch (24 Sketch samples)
             try:
                 x_tgt, _, _ = next(target_iter)
             except StopIteration:
@@ -80,40 +77,40 @@ def train_cdan():
 
             optimizer.zero_grad()
 
-            # Forward pass source
             src_feat, src_logits = model(x_src)
             loss_cls = criterion_cls(src_logits, y_src)
             src_probs = F.softmax(src_logits, dim=-1)
 
-            # Forward pass target
             tgt_feat, tgt_logits = model(x_tgt)
             tgt_probs = F.softmax(tgt_logits, dim=-1)
 
-            # Combine conditioned features
             joint_feat = torch.cat([src_feat, tgt_feat], dim=0)
             joint_probs = torch.cat([src_probs, tgt_probs], dim=0)
 
-            # Domain prediction
+            # Domain prediction with isolated gradient
             domain_logits = discriminator(joint_feat, joint_probs, alpha).squeeze(-1)
             domain_labels = torch.cat([
                 torch.zeros(x_src.size(0), device=DEVICE),
                 torch.ones(x_tgt.size(0), device=DEVICE)
             ])
 
-            # Entropy weighting (CDAN+E)
             sample_weights = calc_entropy_weights(joint_probs)
             raw_domain_loss = criterion_domain(domain_logits, domain_labels)
             loss_domain = torch.mean(sample_weights * raw_domain_loss)
 
             loss = loss_cls + loss_domain
             loss.backward()
+
+            # Guard against adversarial gradient spikes
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+            torch.nn.utils.clip_grad_norm_(discriminator.parameters(), max_norm=5.0)
+
             optimizer.step()
 
             epoch_cls_loss += loss_cls.item()
             epoch_domain_loss += loss_domain.item()
             global_step += 1
 
-        # Checkpoint selection on source validation
         val_f1s = []
         for d, loader in src_val_loaders.items():
             _, f1 = evaluate_domain(model, loader)
@@ -134,7 +131,6 @@ def train_cdan():
                 print(f"Early stopping triggered at epoch {epoch}.")
                 break
 
-    # Final evaluation on target Sketch
     model.load_state_dict(torch.load(best_checkpoint_path, map_location=DEVICE))
     tgt_acc, tgt_f1 = evaluate_domain(model, target_eval_loader)
     print("\n" + "="*50)
