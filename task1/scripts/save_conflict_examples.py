@@ -22,7 +22,7 @@ def save_informative_examples():
         splits = json.load(f)
     classes = splits["classes"]
 
-    # Load models
+    # Load backbones and heads
     resnet = ResNet50FeatureExtractor().to(DEVICE)
     resnet_head = LinearProbe(2048).to(DEVICE)
     resnet_head.load_state_dict(torch.load("task1/models/ResNet-50_head.pth", map_location=DEVICE))
@@ -43,12 +43,9 @@ def save_informative_examples():
     logit_scale = clip_model.logit_scale.exp()
     clip_norm = T.Normalize(mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
 
-    # Find 4 diverse conflict samples (e.g. texture bias case, shape bias case, failure case)
-    selected_indices = [5, 25, 45, 65]
-    fig, axes = plt.subplots(1, 4, figsize=(18, 5))
-
-    for idx, sample_idx in enumerate(selected_indices):
-        item = metadata[sample_idx]
+    # Run inference across all conflict items to find specific behaviors
+    eval_records = []
+    for item in metadata:
         img_path = conflict_dir / item["file"]
         pil_img = Image.open(img_path).convert("RGB")
         tensor = T.ToTensor()(pil_img).unsqueeze(0).to(DEVICE)
@@ -59,13 +56,63 @@ def save_informative_examples():
             c_logits = logit_scale * (clip_ext(clip_norm(tensor)) @ text_feats.T)
             c_pred = classes[torch.argmax(c_logits, dim=-1).item()]
 
+        eval_records.append({
+            "item": item,
+            "img": pil_img,
+            "r_pred": r_pred,
+            "v_pred": v_pred,
+            "c_pred": c_pred,
+            "shape": item["shape_class_name"],
+            "texture": item["texture_class_name"]
+        })
+
+    # Search for targeted case categories
+    selected = {}
+    for rec in eval_records:
+        s, t = rec["shape"], rec["texture"]
+        r, v, c = rec["r_pred"], rec["v_pred"], rec["c_pred"]
+
+        # Case 1: Texture Bias (ResNet predicts texture, ViT or CLIP predicts shape)
+        if "texture_bias" not in selected and r == t and (v == s or c == s):
+            selected["texture_bias"] = rec
+
+        # Case 2: Unanimous Shape Agreement
+        if "shape_agreement" not in selected and r == s and v == s and c == s:
+            selected["shape_agreement"] = rec
+
+        # Case 3: ViT/CLIP Disagreement
+        if "model_disagreement" not in selected and v != c and (v == s or c == s):
+            selected["model_disagreement"] = rec
+
+        # Case 4: Other / Semantic Failure (Model predicts a class that is neither shape nor style)
+        if "other_failure" not in selected and (r not in [s, t] or v not in [s, t] or c not in [s, t]):
+            selected["other_failure"] = rec
+
+    # Fallback if any category wasn't found
+    candidates = list(selected.values())
+    for rec in eval_records:
+        if len(candidates) >= 4:
+            break
+        if rec not in candidates:
+            candidates.append(rec)
+
+    fig, axes = plt.subplots(1, 4, figsize=(20, 5.5))
+    panel_titles = [
+        "Texture Bias Case",
+        "Shape Consensus",
+        "Model Disagreement",
+        "Low-Coverage Failure"
+    ]
+
+    for idx, rec in enumerate(candidates[:4]):
         ax = axes[idx]
-        ax.imshow(pil_img)
+        ax.imshow(rec["img"])
         title = (
-            f"Shape: {item['shape_class_name']} | Style: {item['texture_class_name']}\n"
-            f"ResNet: {r_pred}\n"
-            f"ViT: {v_pred}\n"
-            f"CLIP (ZS): {c_pred}"
+            f"[{panel_titles[idx]}]\n"
+            f"Shape: {rec['shape']} | Style: {rec['texture']}\n"
+            f"ResNet-50: {rec['r_pred']}\n"
+            f"ViT-B/16: {rec['v_pred']}\n"
+            f"CLIP (ZS): {rec['c_pred']}"
         )
         ax.set_title(title, fontsize=10)
         ax.axis("off")
@@ -74,7 +121,7 @@ def save_informative_examples():
     Path("report/figures").mkdir(parents=True, exist_ok=True)
     out_file = "report/figures/cue_conflict_examples.png"
     plt.savefig(out_file, dpi=300, bbox_inches="tight")
-    print(f"Saved qualitative cue-conflict examples to {out_file}")
+    print(f"Updated informative cue-conflict examples saved to {out_file}")
 
 if __name__ == "__main__":
     save_informative_examples()
