@@ -119,7 +119,7 @@ def train_and_evaluate_dann(max_alpha: float):
 
     # Calculate Domain Separability
     f_src, _, _ = extract_features_and_preds(model, src_val_loaders, is_source_dict=True)
-    f_tgt, _, _ = extract_features_and_preds(model, tgt_eval_loader, is_source_dict=False)
+    f_tgt, _, _ = extract_features_and_preds(model, target_eval_loader, is_source_dict=False)
     
     min_samples = min(len(f_src), len(f_tgt))
     idx_src = np.random.choice(len(f_src), min_samples, replace=False)
