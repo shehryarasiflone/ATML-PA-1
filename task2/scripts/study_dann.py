@@ -11,7 +11,7 @@ from task2.models.backbone import PACSResNet18, freeze_bn_stats
 from task2.data.pacs_loader import get_pacs_dataloaders
 from task2.methods.dann import DomainDiscriminator
 from task2.scripts.train_source_only import evaluate_domain
-from task2.scripts.evaluate_all import extract_features_and_preds
+from task2.scripts.evaluate_final import extract_features_and_preds
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
