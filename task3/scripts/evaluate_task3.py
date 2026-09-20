@@ -99,9 +99,9 @@ def evaluate_all_dg():
     print("\n" + "="*115)
     print("TASK 3: DOMAIN GENERALIZATION FINAL BENCHMARK")
     print("="*115)
-    header = (f"{'Method':<16} | {'Photo':<9} | {'Art':<9} | {'Cartoon':<9} | "
-              f"{'Mean Src':<10} | {'Worst Src':<11} | {'Sketch Acc':<11} | "
-              f"{'Sketch F1':<10} | {'Δ Sketch':<9} | {'Src Sep':<8} | {'Sharpness'}")
+    header = (f"{'Method':<14} | {'Photo':<9} | {'Art':<9} | {'Cartoon':<9} | "
+              f"{'Mean Src':<10} | {'Worst Src':<10} | {'Sketch Acc':<10} | "
+              f"{'Sketch F1':<9} | {'Δ Sketch':<8} | {'Src Sep':<8} | {'Sharpness'}")
     print(header)
     print("-" * 115)
 
