@@ -12,25 +12,34 @@ CIFAR_TRAIN_TRANSFORM = T.Compose([
     T.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
 ])
 
+# Step 3: RandAugment inserted after crop & flip, before conversion & normalization
+CIFAR_GCSC_TRAIN_TRANSFORM = T.Compose([
+    T.RandomCrop(32, padding=4),
+    T.RandomHorizontalFlip(),
+    T.RandAugment(num_ops=2, magnitude=9),
+    T.ToTensor(),
+    T.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+])
+
 CIFAR_EVAL_TRANSFORM = T.Compose([
     T.ToTensor(),
     T.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
 ])
 
-def get_osr_dataloaders(split_path: str = "task4/splits/cifar_osr_seed6304.json"):
+def get_osr_dataloaders(split_path: str = "task4/splits/cifar_osr_seed6304.json", use_randaugment: bool = False):
     with open(split_path, "r") as f:
         manifest = json.load(f)
 
     c10_root = manifest.get("c10_root", "./data")
     c100_root = manifest.get("c100_root", "./data")
 
-    # Base datasets read directly from discovered root with download=False
-    c10_train_raw = CIFAR10(root=c10_root, train=True, download=False, transform=CIFAR_TRAIN_TRANSFORM)
+    train_tf = CIFAR_GCSC_TRAIN_TRANSFORM if use_randaugment else CIFAR_TRAIN_TRANSFORM
+
+    c10_train_raw = CIFAR10(root=c10_root, train=True, download=False, transform=train_tf)
     c10_val_raw = CIFAR10(root=c10_root, train=True, download=False, transform=CIFAR_EVAL_TRANSFORM)
     c10_test = CIFAR10(root=c10_root, train=False, download=False, transform=CIFAR_EVAL_TRANSFORM)
     c100_test = CIFAR100(root=c100_root, train=False, download=False, transform=CIFAR_EVAL_TRANSFORM)
 
-    # Subsets
     train_ds = Subset(c10_train_raw, manifest["train_indices"])
     val_ds = Subset(c10_val_raw, manifest["val_indices"])
     near_ds = Subset(c100_test, manifest["near_indices"])
