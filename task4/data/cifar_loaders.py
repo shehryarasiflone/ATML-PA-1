@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 import torch
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10, CIFAR100
@@ -16,17 +17,20 @@ CIFAR_EVAL_TRANSFORM = T.Compose([
     T.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
 ])
 
-def get_osr_dataloaders(split_path: str = "task4/splits/cifar_osr_seed6304.json", data_root: str = "./data"):
+def get_osr_dataloaders(split_path: str = "task4/splits/cifar_osr_seed6304.json"):
     with open(split_path, "r") as f:
         manifest = json.load(f)
 
-    # Base datasets
-    c10_train_raw = CIFAR10(root=data_root, train=True, download=False, transform=CIFAR_TRAIN_TRANSFORM)
-    c10_val_raw = CIFAR10(root=data_root, train=True, download=False, transform=CIFAR_EVAL_TRANSFORM)
-    c10_test = CIFAR10(root=data_root, train=False, download=False, transform=CIFAR_EVAL_TRANSFORM)
-    c100_test = CIFAR100(root=data_root, train=False, download=False, transform=CIFAR_EVAL_TRANSFORM)
+    c10_root = manifest.get("c10_root", "./data")
+    c100_root = manifest.get("c100_root", "./data")
 
-    # Subset
+    # Base datasets read directly from discovered root with download=False
+    c10_train_raw = CIFAR10(root=c10_root, train=True, download=False, transform=CIFAR_TRAIN_TRANSFORM)
+    c10_val_raw = CIFAR10(root=c10_root, train=True, download=False, transform=CIFAR_EVAL_TRANSFORM)
+    c10_test = CIFAR10(root=c10_root, train=False, download=False, transform=CIFAR_EVAL_TRANSFORM)
+    c100_test = CIFAR100(root=c100_root, train=False, download=False, transform=CIFAR_EVAL_TRANSFORM)
+
+    # Subsets
     train_ds = Subset(c10_train_raw, manifest["train_indices"])
     val_ds = Subset(c10_val_raw, manifest["val_indices"])
     near_ds = Subset(c100_test, manifest["near_indices"])

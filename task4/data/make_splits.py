@@ -10,14 +10,46 @@ from common.seed import set_seed
 NEAR_CLASSES = ["bus", "pickup_truck", "motorcycle", "tractor", "wolf", "fox", "leopard", "camel"]
 FAR_CLASSES = ["bottle", "bowl", "chair", "clock", "keyboard", "mushroom", "sunflower", "wardrobe"]
 
-def prepare_osr_splits(data_root: str = "./data", output_dir: str = "task4/splits"):
+def find_cifar_root(base_folder_name, search_dirs=None):
+    """
+    Finds the directory containing the CIFAR batch folder in Kaggle input or local storage.
+    """
+    if search_dirs is None:
+        search_dirs = ["/kaggle/input", "./data", "../data", "/kaggle/working/ATML-PA-1/data"]
+    for s_dir in search_dirs:
+        p = Path(s_dir)
+        if not p.exists():
+            continue
+        for root, dirs, _ in os.walk(p):
+            if base_folder_name in dirs:
+                print(f"Discovered {base_folder_name} at: {root}")
+                return Path(root)
+    return None
+
+def prepare_osr_splits(output_dir: str = "task4/splits"):
     set_seed(6304)
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Load CIFAR-10
-    c10_train = CIFAR10(root=data_root, train=True, download=True)
-    c10_test = CIFAR10(root=data_root, train=False, download=True)
+    # 1. Locate or fallback CIFAR-10
+    c10_root = find_cifar_root("cifar-10-batches-py")
+    if c10_root is None:
+        c10_root = Path("./data")
+        download_c10 = True
+    else:
+        download_c10 = False
+
+    # 2. Locate or fallback CIFAR-100
+    c100_root = find_cifar_root("cifar-100-python")
+    if c100_root is None:
+        c100_root = Path("./data")
+        download_c100 = True
+    else:
+        download_c100 = False
+
+    print(f"Loading CIFAR-10 from: {c10_root}")
+    c10_train = CIFAR10(root=str(c10_root), train=True, download=download_c10)
+    c10_test = CIFAR10(root=str(c10_root), train=False, download=download_c10)
 
     train_indices, val_indices = train_test_split(
         np.arange(len(c10_train)),
@@ -29,8 +61,8 @@ def prepare_osr_splits(data_root: str = "./data", output_dir: str = "task4/split
 
     print(f"CIFAR-10 Splits -> Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(c10_test)}")
 
-    # 2. Load CIFAR-100 Test Set for Unknowns
-    c100_test = CIFAR100(root=data_root, train=False, download=True)
+    print(f"Loading CIFAR-100 from: {c100_root}")
+    c100_test = CIFAR100(root=str(c100_root), train=False, download=download_c100)
     c100_classes = c100_test.classes
 
     near_indices = []
@@ -50,6 +82,8 @@ def prepare_osr_splits(data_root: str = "./data", output_dir: str = "task4/split
     split_manifest = {
         "dataset": "CIFAR-10 / CIFAR-100 OSR",
         "seed": 6304,
+        "c10_root": str(c10_root),
+        "c100_root": str(c100_root),
         "cifar10_classes": c10_train.classes,
         "train_indices": train_indices.tolist(),
         "val_indices": val_indices.tolist(),
