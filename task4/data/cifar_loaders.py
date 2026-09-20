@@ -26,7 +26,7 @@ def get_osr_dataloaders(split_path: str = "task4/splits/cifar_osr_seed6304.json"
     c10_test = CIFAR10(root=data_root, train=False, download=False, transform=CIFAR_EVAL_TRANSFORM)
     c100_test = CIFAR100(root=data_root, train=False, download=False, transform=CIFAR_EVAL_TRANSFORM)
 
-    # Subsets
+    # Subset
     train_ds = Subset(c10_train_raw, manifest["train_indices"])
     val_ds = Subset(c10_val_raw, manifest["val_indices"])
     near_ds = Subset(c100_test, manifest["near_indices"])
