@@ -164,14 +164,14 @@ def evaluate_all_dg():
         results[name] = {"preds": p_tgt, "targets": y_tgt}
 
         print(f"{name:<16} | "
-              f"{src_val_metrics['photo'][0]:>5.1f}%   | "
-              f"{src_val_metrics['art_painting'][0]:>5.1f}%   | "
-              f"{src_val_metrics['cartoon'][0]:>5.1f}%   | "
-              f"{mean_src_acc:>5.2f}%    | "
+              f"{src_val_metrics['photo'][0]:>5.1f}% | "
+              f"{src_val_metrics['art_painting'][0]:>5.1f}% | "
+              f"{src_val_metrics['cartoon'][0]:>5.1f}% | "
+              f"{mean_src_acc:>5.2f}% | "
               f"{worst_domain[:3]}({worst_src_acc:>4.1f}%) | "
-              f"{sketch_acc:>6.2f}%    | "
-              f"{sketch_f1:>5.2f}%   | "
-              f"{delta_sketch:>+6.2f}%   | "
+              f"{sketch_acc:>6.2f}%  | "
+              f"{sketch_f1:>5.2f}% | "
+              f"{delta_sketch:>+6.2f}% | "
               f"{sep_score:>5.1f}%  | "
               f"{sharp_val:>8.4f}")
 
