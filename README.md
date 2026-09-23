@@ -1,4 +1,4 @@
-# Beyond I.I.D. Learning: Inductive Biases, Domain Transfer, and Open-Set Recognition
+# Beyond I.I.D. Learning: Advanced Topics in Machine Learning Assignment 1
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
